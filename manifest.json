@@ -5,7 +5,10 @@
   "description": "Automatically open configured tabs on browser startup and new window creation, with optional pinning.",
   "permissions": [
     "tabs",
-    "storage"
+    "storage",
+    "webRequest",
+    "webRequestBlocking",
+    "<all_urls>"
   ],
   "background": {
     "scripts": ["background.js"]

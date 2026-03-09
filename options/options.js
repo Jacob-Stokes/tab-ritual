@@ -33,15 +33,12 @@ function addRow(tabData = null) {
   const startupChecked = tabData && tabData.onStartup ? "checked" : "";
   const newWindowChecked = tabData && tabData.onNewWindow ? "checked" : "";
   const pinnedChecked = tabData && tabData.pinned ? "checked" : "";
-  const lockOriginChecked = tabData && tabData.lockOrigin ? "checked" : "";
-
   tr.innerHTML = `
     <td class="center"><span class="drag-handle" title="Drag to reorder">&#x2630;</span></td>
     <td><input type="url" class="url-input" placeholder="https://example.com" value="${escapeHtml(urlValue)}"></td>
     <td class="center"><input type="checkbox" class="startup-check" ${startupChecked}></td>
     <td class="center"><input type="checkbox" class="newwindow-check" ${newWindowChecked}></td>
     <td class="center"><input type="checkbox" class="pinned-check" ${pinnedChecked}></td>
-    <td class="center"><input type="checkbox" class="lockorigin-check" ${lockOriginChecked} title="Block navigation to other domains in this pinned tab"></td>
     <td class="center"><button class="delete-btn" type="button" title="Remove">&#x2715;</button></td>
   `;
 
@@ -142,7 +139,6 @@ async function saveOptions() {
       onStartup: row.querySelector(".startup-check").checked,
       onNewWindow: row.querySelector(".newwindow-check").checked,
       pinned: row.querySelector(".pinned-check").checked,
-      lockOrigin: row.querySelector(".lockorigin-check").checked,
     });
   }
 

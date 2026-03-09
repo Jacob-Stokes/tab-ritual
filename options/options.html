@@ -12,6 +12,7 @@
   <table id="tab-table">
     <thead>
       <tr>
+        <th class="col-drag"></th>
         <th class="col-url">URL</th>
         <th class="col-check">On Startup</th>
         <th class="col-check">On New Window</th>
@@ -27,6 +28,17 @@
     <button id="add-btn" type="button">+ Add URL</button>
     <button id="save-btn" type="button">Save</button>
     <span id="status"></span>
+  </div>
+
+  <hr>
+
+  <div class="settings-section">
+    <h2>Settings</h2>
+    <label class="setting-row">
+      <input type="checkbox" id="protect-pinned">
+      <span><strong>Protect pinned tabs from closing</strong><br>
+      <small>When a pinned tab is closed (middle-click, Ctrl+W, etc.), immediately reopen it. There will be a brief visual flash.</small></span>
+    </label>
   </div>
 
   <script src="options.js"></script>

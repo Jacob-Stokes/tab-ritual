@@ -1,11 +1,17 @@
 "use strict";
 
+let dragSrcRow = null;
+
 document.addEventListener("DOMContentLoaded", loadOptions);
 document.getElementById("add-btn").addEventListener("click", () => addRow());
 document.getElementById("save-btn").addEventListener("click", saveOptions);
 
 async function loadOptions() {
-  const { tabs } = await browser.storage.sync.get({ tabs: [] });
+  const { tabs, protectPinned } = await browser.storage.sync.get({
+    tabs: [],
+    protectPinned: false,
+  });
+
   const tbody = document.getElementById("tab-rows");
   tbody.innerHTML = "";
 
@@ -16,11 +22,14 @@ async function loadOptions() {
       addRow(tab);
     }
   }
+
+  document.getElementById("protect-pinned").checked = protectPinned;
 }
 
 function addRow(tabData = null) {
   const tbody = document.getElementById("tab-rows");
   const tr = document.createElement("tr");
+  tr.draggable = true;
 
   const urlValue = tabData ? tabData.url : "";
   const startupChecked = tabData && tabData.onStartup ? "checked" : "";
@@ -28,6 +37,7 @@ function addRow(tabData = null) {
   const pinnedChecked = tabData && tabData.pinned ? "checked" : "";
 
   tr.innerHTML = `
+    <td class="center"><span class="drag-handle" title="Drag to reorder">&#x2630;</span></td>
     <td><input type="url" class="url-input" placeholder="https://example.com" value="${escapeHtml(urlValue)}"></td>
     <td class="center"><input type="checkbox" class="startup-check" ${startupChecked}></td>
     <td class="center"><input type="checkbox" class="newwindow-check" ${newWindowChecked}></td>
@@ -39,13 +49,74 @@ function addRow(tabData = null) {
     tr.remove();
   });
 
+  // Drag-and-drop events
+  tr.addEventListener("dragstart", handleDragStart);
+  tr.addEventListener("dragover", handleDragOver);
+  tr.addEventListener("dragenter", handleDragEnter);
+  tr.addEventListener("dragleave", handleDragLeave);
+  tr.addEventListener("drop", handleDrop);
+  tr.addEventListener("dragend", handleDragEnd);
+
   tbody.appendChild(tr);
 
-  // Focus the new URL input if it's empty
   if (!tabData) {
     tr.querySelector(".url-input").focus();
   }
 }
+
+// --- Drag and drop ---
+
+function handleDragStart(e) {
+  dragSrcRow = this;
+  this.classList.add("dragging");
+  e.dataTransfer.effectAllowed = "move";
+  e.dataTransfer.setData("text/plain", ""); // required for Firefox
+}
+
+function handleDragOver(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+}
+
+function handleDragEnter(e) {
+  e.preventDefault();
+  const row = e.currentTarget;
+  if (row !== dragSrcRow) {
+    row.classList.add("drag-over");
+  }
+}
+
+function handleDragLeave(e) {
+  e.currentTarget.classList.remove("drag-over");
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const targetRow = e.currentTarget;
+  targetRow.classList.remove("drag-over");
+
+  if (dragSrcRow && dragSrcRow !== targetRow) {
+    const tbody = document.getElementById("tab-rows");
+    const rows = Array.from(tbody.querySelectorAll("tr"));
+    const srcIndex = rows.indexOf(dragSrcRow);
+    const targetIndex = rows.indexOf(targetRow);
+
+    if (srcIndex < targetIndex) {
+      tbody.insertBefore(dragSrcRow, targetRow.nextSibling);
+    } else {
+      tbody.insertBefore(dragSrcRow, targetRow);
+    }
+  }
+}
+
+function handleDragEnd() {
+  dragSrcRow = null;
+  for (const row of document.querySelectorAll("#tab-rows tr")) {
+    row.classList.remove("dragging", "drag-over");
+  }
+}
+
+// --- Save / Load ---
 
 async function saveOptions() {
   const rows = document.querySelectorAll("#tab-rows tr");
@@ -56,10 +127,8 @@ async function saveOptions() {
     const urlInput = row.querySelector(".url-input");
     const url = urlInput.value.trim();
 
-    // Skip completely empty rows
     if (!url) continue;
 
-    // Validate URL
     if (!isValidUrl(url)) {
       urlInput.classList.add("error");
       hasError = true;
@@ -81,7 +150,9 @@ async function saveOptions() {
     return;
   }
 
-  await browser.storage.sync.set({ tabs });
+  const protectPinned = document.getElementById("protect-pinned").checked;
+
+  await browser.storage.sync.set({ tabs, protectPinned });
   showStatus("Settings saved!");
 }
 

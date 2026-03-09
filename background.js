@@ -2,12 +2,16 @@
 
 let isStartup = false;
 
+// Track pinned tabs so we can reopen them if closed
+// Maps tabId -> { url, windowId }
+const pinnedTabCache = new Map();
+
 function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 async function getConfig() {
-  return browser.storage.sync.get({ tabs: [] });
+  return browser.storage.sync.get({ tabs: [], protectPinned: false });
 }
 
 async function openTabs(tabConfigs, windowId) {
@@ -31,10 +35,59 @@ async function openTabs(tabConfigs, windowId) {
   }
 }
 
+// --- Pinned tab protection ---
+// Build initial cache of all pinned tabs on extension load
+async function initPinnedTabCache() {
+  const allTabs = await browser.tabs.query({ pinned: true });
+  for (const tab of allTabs) {
+    pinnedTabCache.set(tab.id, { url: tab.url, windowId: tab.windowId });
+  }
+}
+
+// Track pinned state changes
+browser.tabs.onCreated.addListener((tab) => {
+  if (tab.pinned) {
+    pinnedTabCache.set(tab.id, { url: tab.url, windowId: tab.windowId });
+  }
+});
+
+browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (tab.pinned) {
+    pinnedTabCache.set(tabId, { url: tab.url, windowId: tab.windowId });
+  } else {
+    pinnedTabCache.delete(tabId);
+  }
+});
+
+// Reopen pinned tabs when closed (if protection enabled)
+browser.tabs.onRemoved.addListener(async (tabId, removeInfo) => {
+  const cached = pinnedTabCache.get(tabId);
+  pinnedTabCache.delete(tabId);
+
+  if (!cached) return;
+  if (removeInfo.isWindowClosing) return;
+
+  const { protectPinned } = await getConfig();
+  if (!protectPinned) return;
+
+  try {
+    await browser.tabs.create({
+      url: cached.url,
+      pinned: true,
+      active: false,
+      windowId: cached.windowId,
+    });
+  } catch (err) {
+    console.error(`Tab Ritual: Failed to restore pinned tab ${cached.url}:`, err);
+  }
+});
+
 // --- Browser startup ---
 browser.runtime.onStartup.addListener(async () => {
   isStartup = true;
   setTimeout(() => { isStartup = false; }, 3000);
+
+  await initPinnedTabCache();
 
   const { tabs } = await getConfig();
   const startupTabs = tabs.filter(t => t.onStartup);
@@ -64,3 +117,13 @@ browser.windows.onCreated.addListener(async (window) => {
 
   await openTabs(newWindowTabs, window.id);
 });
+
+// --- Extension install / update ---
+// Also init cache when extension is first loaded (not just on startup)
+browser.runtime.onInstalled.addListener(() => {
+  initPinnedTabCache();
+});
+
+// Init cache immediately for the case where the extension is loaded
+// mid-session (e.g. temporary add-on during development)
+initPinnedTabCache();

@@ -29,20 +29,59 @@ function addRow(tabData = null) {
   const tr = document.createElement("tr");
   tr.draggable = true;
 
-  const urlValue = tabData ? tabData.url : "";
-  const startupChecked = tabData && tabData.onStartup ? "checked" : "";
-  const newWindowChecked = tabData && tabData.onNewWindow ? "checked" : "";
-  const pinnedChecked = tabData && tabData.pinned ? "checked" : "";
-  tr.innerHTML = `
-    <td class="center"><span class="drag-handle" title="Drag to reorder">&#x2630;</span></td>
-    <td><input type="url" class="url-input" placeholder="https://example.com" value="${escapeHtml(urlValue)}"></td>
-    <td class="center"><input type="checkbox" class="startup-check" ${startupChecked}></td>
-    <td class="center"><input type="checkbox" class="newwindow-check" ${newWindowChecked}></td>
-    <td class="center"><input type="checkbox" class="pinned-check" ${pinnedChecked}></td>
-    <td class="center"><button class="delete-btn" type="button" title="Remove">&#x2715;</button></td>
-  `;
+  // Build row cells via DOM API (avoids innerHTML with dynamic values)
+  const tdDrag = document.createElement("td");
+  tdDrag.className = "center";
+  const dragSpan = document.createElement("span");
+  dragSpan.className = "drag-handle";
+  dragSpan.title = "Drag to reorder";
+  dragSpan.textContent = "\u2630";
+  tdDrag.appendChild(dragSpan);
 
-  tr.querySelector(".delete-btn").addEventListener("click", () => {
+  const tdUrl = document.createElement("td");
+  const urlInput = document.createElement("input");
+  urlInput.type = "url";
+  urlInput.className = "url-input";
+  urlInput.placeholder = "https://example.com";
+  urlInput.value = tabData ? tabData.url : "";
+  tdUrl.appendChild(urlInput);
+
+  const tdStartup = document.createElement("td");
+  tdStartup.className = "center";
+  const startupCheck = document.createElement("input");
+  startupCheck.type = "checkbox";
+  startupCheck.className = "startup-check";
+  startupCheck.checked = tabData ? tabData.onStartup : false;
+  tdStartup.appendChild(startupCheck);
+
+  const tdNewWindow = document.createElement("td");
+  tdNewWindow.className = "center";
+  const newWindowCheck = document.createElement("input");
+  newWindowCheck.type = "checkbox";
+  newWindowCheck.className = "newwindow-check";
+  newWindowCheck.checked = tabData ? tabData.onNewWindow : false;
+  tdNewWindow.appendChild(newWindowCheck);
+
+  const tdPinned = document.createElement("td");
+  tdPinned.className = "center";
+  const pinnedCheck = document.createElement("input");
+  pinnedCheck.type = "checkbox";
+  pinnedCheck.className = "pinned-check";
+  pinnedCheck.checked = tabData ? tabData.pinned : false;
+  tdPinned.appendChild(pinnedCheck);
+
+  const tdDelete = document.createElement("td");
+  tdDelete.className = "center";
+  const deleteBtn = document.createElement("button");
+  deleteBtn.className = "delete-btn";
+  deleteBtn.type = "button";
+  deleteBtn.title = "Remove";
+  deleteBtn.textContent = "\u2715";
+  tdDelete.appendChild(deleteBtn);
+
+  tr.append(tdDrag, tdUrl, tdStartup, tdNewWindow, tdPinned, tdDelete);
+
+  deleteBtn.addEventListener("click", () => {
     tr.remove();
   });
 
@@ -57,7 +96,7 @@ function addRow(tabData = null) {
   tbody.appendChild(tr);
 
   if (!tabData) {
-    tr.querySelector(".url-input").focus();
+    urlInput.focus();
   }
 }
 
@@ -172,8 +211,3 @@ function showStatus(message, isError = false) {
   }
 }
 
-function escapeHtml(str) {
-  const div = document.createElement("div");
-  div.textContent = str;
-  return div.innerHTML;
-}
